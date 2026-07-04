@@ -650,9 +650,9 @@ export function BirthdayGate() {
     }
   }, [narrativeStep]);
 
-  // Carga asíncrona de recursos de Leaflet (Mapas)
+  // Carga asíncrona de recursos de Leaflet (Mapas) - Se ejecuta únicamente en el Paso 9 (Mapa)
   useEffect(() => {
-    if (narrativeStep !== 8) return;
+    if (narrativeStep !== 9) return;
 
     // Cargar CSS de Leaflet
     if (!document.getElementById("leaflet-css")) {
@@ -679,7 +679,7 @@ export function BirthdayGate() {
 
   // Inicializar Leaflet y centrar usando Geolocalización del navegador
   useEffect(() => {
-    if (narrativeStep !== 8 || !leafletLoaded) return;
+    if (narrativeStep !== 9 || !leafletLoaded) return;
 
     const L = (window as any).L;
     if (!L) return;
@@ -701,23 +701,31 @@ export function BirthdayGate() {
         mapRef.current.remove();
       }
 
-      // Crear mapa
-      const map = L.map("leaflet-map").setView([initialLat, initialLng], 14);
+      // Crear mapa minimalista sin controles de copyright ni botones de zoom en pantalla
+      const map = L.map("leaflet-map", {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([initialLat, initialLng], 15);
       mapRef.current = map;
 
-      // Cargar azulejos de OpenStreetMap
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; OpenStreetMap',
+      // Cargar azulejos minimalistas gris-pastel (CartoDB Positron) para máxima finura de diseño
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 19,
       }).addTo(map);
 
-      // Icono SVG personalizado de PIN rojo (evita problemas de assets rotos en empaquetadores)
+      // Icono SVG personalizado de PIN rojo (rose-600) con sombreado y desplazamiento de tip para evitar colapso visual
       const customPinIcon = L.divIcon({
-        html: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                 <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="#ef4444"/>
-               </svg>`,
+        html: `<div style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                 <!-- Sombra del pin -->
+                 <div style="position: absolute; bottom: 0; width: 8px; height: 8px; background: rgba(0,0,0,0.15); border-radius: 50%; transform: scaleX(2.5); filter: blur(1.5px);"></div>
+                 <!-- SVG de pin rojo flotante -->
+                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="transform: translateY(-8px); filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.15));">
+                   <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="#e11d48"/>
+                 </svg>
+               </div>`,
         className: "custom-leaflet-pin",
-        iconSize: [28, 28],
-        iconAnchor: [14, 28],
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
       });
 
       // Crear pin arrastrable
@@ -1327,7 +1335,7 @@ export function BirthdayGate() {
         )}
       </AnimatePresence>
 
-      {/* PASO 8 (Pregunta 4.5): ¿Cuál es el lugar de sushi que más te gusta? (Center-Top con Mapa) */}
+      {/* PASO 8 (Pregunta 4.5): ¿Cuál es el lugar de sushi que más te gusta? (Solo Input de Nombre) */}
       <AnimatePresence>
         {narrativeStep === 8 && (
           <motion.div
@@ -1350,7 +1358,7 @@ export function BirthdayGate() {
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col items-center mt-6 gap-4 w-full px-4"
+                  className="flex flex-col items-center mt-6 gap-4"
                 >
                   <input
                     type="text"
@@ -1359,34 +1367,10 @@ export function BirthdayGate() {
                     onChange={(e) => setFavSushiPlace(e.target.value)}
                     className="w-64 border-b border-neutral-250 bg-transparent py-1.5 text-center font-display text-xl outline-none focus:border-neutral-800 text-neutral-800"
                   />
-
-                  {/* Div del Mapa de Leaflet */}
-                  <div className="w-full max-w-md flex flex-col items-center mt-2">
-                    <p className="text-[0.62rem] text-neutral-450 uppercase tracking-widest mb-2 font-mono">
-                      Selecciona la ubicación exacta en el mapa:
-                    </p>
-                    <div 
-                      id="leaflet-map" 
-                      className="w-full h-48 rounded-sm border border-neutral-250 pointer-events-auto shadow-sm relative z-50 bg-neutral-50"
-                      style={{ minHeight: "192px" }}
-                    >
-                      {!leafletLoaded && (
-                        <div className="absolute inset-0 flex items-center justify-center text-[10px] text-neutral-400 font-mono">
-                          Cargando mapa...
-                        </div>
-                      )}
-                    </div>
-                    {latitude !== null && longitude !== null && (
-                      <span className="text-[9px] font-mono text-neutral-400 mt-2">
-                        Lat: {latitude.toFixed(6)} | Lng: {longitude.toFixed(6)}
-                      </span>
-                    )}
-                  </div>
-
                   <button
                     onClick={() => {
                       if (!favSushiPlace.trim()) return;
-                      setNarrativeStep(7);
+                      setNarrativeStep(9); // Redirige al nuevo Paso 9 (Mapa)
                     }}
                     className="px-6 py-2.5 border border-neutral-900 bg-neutral-900 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-all duration-305 rounded-sm cursor-pointer"
                   >
@@ -1395,6 +1379,57 @@ export function BirthdayGate() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* PASO 9 (Mapa Interactivo): Selección exclusiva de punto de encuentro en el mapa */}
+      <AnimatePresence>
+        {narrativeStep === 9 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
+            className="absolute top-20 left-6 right-6 text-center max-w-xl mx-auto select-none z-48 flex flex-col items-center"
+          >
+            <h2 className="font-display text-xl md:text-2xl font-light tracking-tight leading-relaxed text-neutral-800 max-w-lg mb-6">
+              <TypewriterText 
+                key="q9"
+                text="Dime dónde queda exactamente, marca en el mapa el punto de encuentro:" 
+              />
+            </h2>
+
+            <div className="flex flex-col items-center w-full px-4 gap-4">
+              <div className="w-full max-w-md flex flex-col items-center">
+                {/* Contenedor del Mapa con esquinas redondeadas y sin controles molestos de Leaflet */}
+                <div 
+                  id="leaflet-map" 
+                  className="w-full h-56 rounded-lg border border-neutral-200 pointer-events-auto shadow-md relative z-50 bg-neutral-50 overflow-hidden"
+                  style={{ minHeight: "224px" }}
+                >
+                  {!leafletLoaded && (
+                    <div className="absolute inset-0 flex items-center justify-center text-[10px] text-neutral-400 font-mono">
+                      Cargando mapa...
+                    </div>
+                  )}
+                </div>
+                {latitude !== null && longitude !== null && (
+                  <span className="text-[9px] font-mono text-neutral-400 mt-2">
+                    Lat: {latitude.toFixed(6)} | Lng: {longitude.toFixed(6)}
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setNarrativeStep(7); // Avanza a la revelación final (Paso 7)
+                }}
+                className="px-6 py-2.5 border border-neutral-900 bg-neutral-900 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-white hover:bg-neutral-800 transition-all duration-305 rounded-sm cursor-pointer"
+              >
+                Confirmar ubicación
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1600,7 +1635,7 @@ export function BirthdayGate() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex w-full items-center justify-center border border-neutral-900 bg-neutral-900 py-3 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white transition-colors duration-300 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center border border-neutral-900 bg-neutral-900 py-3 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white transition-colors duration-305 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? "Validando..." : "Acceder"}
                 </button>
