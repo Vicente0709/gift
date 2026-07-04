@@ -684,7 +684,7 @@ export function BirthdayGate() {
     const L = (window as any).L;
     if (!L) return;
 
-    // Obtener ubicación de la usuaria o por defecto centrar en Lima, Perú
+    // Obtener ubicación de la usuaria o por defecto centrar en Quito, Ecuador
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude;
@@ -708,8 +708,8 @@ export function BirthdayGate() {
       }).setView([initialLat, initialLng], 15);
       mapRef.current = map;
 
-      // Cargar azulejos minimalistas gris-pastel (CartoDB Positron) para máxima finura de diseño
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      // Cargar azulejos de OpenStreetMap clásicos para mostrar nombres de edificios y centros comerciales
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
       }).addTo(map);
 
