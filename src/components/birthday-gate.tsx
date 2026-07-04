@@ -692,7 +692,7 @@ export function BirthdayGate() {
         initMap(lat, lng);
       },
       () => {
-        initMap(-12.0464, -77.0428);
+        initMap(-0.1807, -78.4678);
       }
     );
 
