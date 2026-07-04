@@ -69,7 +69,7 @@ function useCustomGLTF(url: string) {
     const loader = new GLTFLoader();
     loader.load(
       url,
-      (gltf) => {
+      (gltf: any) => {
         if (active) {
           setModel(gltf);
           setLoading(false);
@@ -77,7 +77,7 @@ function useCustomGLTF(url: string) {
         }
       },
       undefined,
-      (err) => {
+      (err: any) => {
         if (active) {
           setError(err);
           setLoading(false);
