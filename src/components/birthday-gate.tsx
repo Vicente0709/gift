@@ -1396,7 +1396,7 @@ export function BirthdayGate() {
             <h2 className="font-display text-xl md:text-2xl font-light tracking-tight leading-relaxed text-neutral-800 max-w-lg mb-6">
               <TypewriterText 
                 key="q9"
-                text="Dime dónde queda exactamente, marca en el mapa el punto de encuentro:" 
+                text="marca en el mapa punto de encuentro" 
               />
             </h2>
 
