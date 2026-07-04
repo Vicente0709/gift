@@ -536,6 +536,11 @@ export function BirthdayGate() {
   const [timeWarningMessage, setTimeWarningMessage] = useState("");
   const [isTimeWarningStrict, setIsTimeWarningStrict] = useState(false);
 
+  // Estados del mapa interactivo
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+
   // Estado para el flujo de letras que se desprenden del glitch central
   const [floatingLetters, setFloatingLetters] = useState<{ id: number; char: string; tx: string; ty: string }[]>([]);
 
@@ -546,6 +551,10 @@ export function BirthdayGate() {
   const dayRef = useRef<HTMLInputElement | null>(null);
   const monthRef = useRef<HTMLInputElement | null>(null);
   const yearRef = useRef<HTMLInputElement | null>(null);
+
+  // Referencias para Leaflet
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
 
   // Ref para evitar inserciones duplicadas en Supabase
   const hasInsertedRef = useRef(false);
@@ -641,6 +650,111 @@ export function BirthdayGate() {
     }
   }, [narrativeStep]);
 
+  // Carga asíncrona de recursos de Leaflet (Mapas)
+  useEffect(() => {
+    if (narrativeStep !== 8) return;
+
+    // Cargar CSS de Leaflet
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+
+    // Cargar JS de Leaflet
+    if (!document.getElementById("leaflet-js")) {
+      const script = document.createElement("script");
+      script.id = "leaflet-js";
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload = () => setLeafletLoaded(true);
+      document.head.appendChild(script);
+    } else {
+      if ((window as any).L) {
+        setLeafletLoaded(true);
+      }
+    }
+  }, [narrativeStep]);
+
+  // Inicializar Leaflet y centrar usando Geolocalización del navegador
+  useEffect(() => {
+    if (narrativeStep !== 8 || !leafletLoaded) return;
+
+    const L = (window as any).L;
+    if (!L) return;
+
+    // Obtener ubicación de la usuaria o por defecto centrar en Lima, Perú
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        initMap(lat, lng);
+      },
+      () => {
+        initMap(-12.0464, -77.0428);
+      }
+    );
+
+    function initMap(initialLat: number, initialLng: number) {
+      if (mapRef.current) {
+        mapRef.current.remove();
+      }
+
+      // Crear mapa
+      const map = L.map("leaflet-map").setView([initialLat, initialLng], 14);
+      mapRef.current = map;
+
+      // Cargar azulejos de OpenStreetMap
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap',
+      }).addTo(map);
+
+      // Icono SVG personalizado de PIN rojo (evita problemas de assets rotos en empaquetadores)
+      const customPinIcon = L.divIcon({
+        html: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                 <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="#ef4444"/>
+               </svg>`,
+        className: "custom-leaflet-pin",
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+      });
+
+      // Crear pin arrastrable
+      const marker = L.marker([initialLat, initialLng], { 
+        draggable: true,
+        icon: customPinIcon,
+      }).addTo(map);
+      markerRef.current = marker;
+
+      // Establecer coordenadas iniciales
+      setLatitude(initialLat);
+      setLongitude(initialLng);
+
+      // Mover pin al hacer clic en el mapa
+      map.on("click", (e: any) => {
+        const { lat, lng } = e.latlng;
+        marker.setLatLng([lat, lng]);
+        setLatitude(lat);
+        setLongitude(lng);
+      });
+
+      // Actualizar coordenadas al finalizar arrastre
+      marker.on("dragend", () => {
+        const { lat, lng } = marker.getLatLng();
+        setLatitude(lat);
+        setLongitude(lng);
+      });
+    }
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [narrativeStep, leafletLoaded]);
+
   // Insertar respuestas en Supabase al llegar al final (Paso 7)
   useEffect(() => {
     if (narrativeStep === 7 && !hasInsertedRef.current) {
@@ -655,6 +769,8 @@ export function BirthdayGate() {
               meeting_time: meetingTime || "No especificada",
               trust_taste: trustTaste ?? false,
               fav_sushi_place: favSushiPlace || null,
+              latitude: latitude || null,
+              longitude: longitude || null,
             });
           if (error) {
             console.error("Supabase insert error:", error);
@@ -667,7 +783,7 @@ export function BirthdayGate() {
       };
       saveResponse();
     }
-  }, [narrativeStep, freeWeekend, freeDay, meetingTime, trustTaste, favSushiPlace]);
+  }, [narrativeStep, freeWeekend, freeDay, meetingTime, trustTaste, favSushiPlace, latitude, longitude]);
 
   // Foco de cumpleaños
   const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1211,7 +1327,7 @@ export function BirthdayGate() {
         )}
       </AnimatePresence>
 
-      {/* PASO 8 (Pregunta 4.5): ¿Cuál es el lugar de sushi que más te gusta? (Center-Top) */}
+      {/* PASO 8 (Pregunta 4.5): ¿Cuál es el lugar de sushi que más te gusta? (Center-Top con Mapa) */}
       <AnimatePresence>
         {narrativeStep === 8 && (
           <motion.div
@@ -1234,7 +1350,7 @@ export function BirthdayGate() {
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col items-center mt-6 gap-4"
+                  className="flex flex-col items-center mt-6 gap-4 w-full px-4"
                 >
                   <input
                     type="text"
@@ -1243,6 +1359,30 @@ export function BirthdayGate() {
                     onChange={(e) => setFavSushiPlace(e.target.value)}
                     className="w-64 border-b border-neutral-250 bg-transparent py-1.5 text-center font-display text-xl outline-none focus:border-neutral-800 text-neutral-800"
                   />
+
+                  {/* Div del Mapa de Leaflet */}
+                  <div className="w-full max-w-md flex flex-col items-center mt-2">
+                    <p className="text-[0.62rem] text-neutral-450 uppercase tracking-widest mb-2 font-mono">
+                      Selecciona la ubicación exacta en el mapa:
+                    </p>
+                    <div 
+                      id="leaflet-map" 
+                      className="w-full h-48 rounded-sm border border-neutral-250 pointer-events-auto shadow-sm relative z-50 bg-neutral-50"
+                      style={{ minHeight: "192px" }}
+                    >
+                      {!leafletLoaded && (
+                        <div className="absolute inset-0 flex items-center justify-center text-[10px] text-neutral-400 font-mono">
+                          Cargando mapa...
+                        </div>
+                      )}
+                    </div>
+                    {latitude !== null && longitude !== null && (
+                      <span className="text-[9px] font-mono text-neutral-400 mt-2">
+                        Lat: {latitude.toFixed(6)} | Lng: {longitude.toFixed(6)}
+                      </span>
+                    )}
+                  </div>
+
                   <button
                     onClick={() => {
                       if (!favSushiPlace.trim()) return;
