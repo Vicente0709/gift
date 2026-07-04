@@ -903,7 +903,7 @@ export function BirthdayGate() {
     setShowQ4Options(false);
     setTimeout(() => {
       if (ans) {
-        setNarrativeStep(7);
+        setNarrativeStep(9);
       } else {
         setNarrativeStep(8);
       }
